@@ -1,0 +1,35 @@
+from flask import Flask, jsonify
+from flask_cors import CORS
+import sys
+import os
+
+# Ensure project root is in sys.path
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+from db.extensions import db, bcrypt
+
+app = Flask(__name__)
+CORS(app)
+
+# SQLite Database Configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'your_secret_key_here'
+
+db.init_app(app)
+bcrypt.init_app(app)
+
+from api.routes import api_bp
+from api.auth.authentication import auth_api_bp
+app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(auth_api_bp, url_prefix='/api/auth')
+
+with app.app_context():
+    db.create_all()
+
+@app.route('/')
+def home():
+    return jsonify({"message": "home"})
+
+if __name__ == '__main__':
+    app.run(debug=True)

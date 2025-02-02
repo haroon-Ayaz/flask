@@ -1,0 +1,60 @@
+# 1️⃣ Checkup
+GET http://127.0.0.1:5000/
+
+###
+# 1️⃣ Signup
+POST http://127.0.0.1:5000/api/auth/signup
+Content-Type: application/json
+
+{
+    "fname": "Mathew",
+    "lname": "John",
+    "email": "admin@admin.com",
+    "password": "password123",
+    "role": "Admin"
+}
+
+###
+# 1️⃣ Signup
+POST http://127.0.0.1:5000/api/auth/signup
+Content-Type: application/json
+
+{
+    "email": "clinician@clinician.com",
+    "password": "password123",
+    "role": "Clinician"
+}
+
+###
+# 2️⃣ Login
+POST http://127.0.0.1:5000/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@admin.com",
+    "password": "password123"
+}
+
+###
+# 3️⃣ Populate Data (from `patients.json`)
+GET http://127.0.0.1:5000/api/populatedata
+
+###
+# 4️⃣ Get All Patient Data
+GET http://127.0.0.1:5000/api/getdata
+
+###
+# 5️⃣ Add New Patient
+POST http://127.0.0.1:5000/api/addpatient
+Content-Type: application/json
+
+{
+    "title": "Mr.",
+    "fname": "John",
+    "sname": "Doe",
+    "address": "123 Main St",
+    "postcode": "12345",
+    "mobilephone": "555-1234",
+    "homephone": "555-5678",
+    "problem": "Severe headache"
+}
