@@ -41,10 +41,20 @@ app.register_blueprint(auth_api_bp, url_prefix='/api/auth')
 
 with app.app_context():
     db.create_all()
+    db.session.commit()
 
 @app.route('/')
 def home():
     return jsonify({"message": "home"})
+
+@app.route('/test_write', methods=['POST'])
+def test_write():
+    try:
+        with app.app_context():
+            db.session.execute("INSERT INTO user (fname, lname, email, password, role) VALUES ('John', 'Doe', 'john@example.com', 'test', 'Admin')")
+            db.session.commit()
+        return {"message": "Write operation successful"}, 200
+    except Exception as e:
 
 if __name__ == '__main__':
     app.run(debug=True)
