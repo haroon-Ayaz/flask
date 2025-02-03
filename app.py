@@ -24,6 +24,16 @@ from db.extensions import db, bcrypt
 db.init_app(app)
 bcrypt.init_app(app)
 
+# Register blueprints
+from api.routes import api_bp
+from api.auth.authentication import auth_api_bp
+app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(auth_api_bp, url_prefix='/api/auth')
+
+# Initialize database
+with app.app_context():
+    db.create_all()
+
 @app.route('/')
 def home():
     return jsonify({"message": "home"})
