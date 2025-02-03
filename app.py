@@ -1,65 +1,32 @@
-import shutil
-import stat
-
 from flask import Flask, jsonify
 from flask_cors import CORS
-import sys
 import os
-
-# Ensure project root is in sys.path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
-
-from db.extensions import db, bcrypt
+import shutil
 
 app = Flask(__name__)
 CORS(app)
 
-# Paths
-TMP_DIR = os.path.join(os.getcwd(), "tmp")  # Use "tmp" inside project directory
-ORIGINAL_DB_PATH = "instance/users.db"
-TEMP_DB_PATH = os.path.join(TMP_DIR, "users.db")
+# Vercel-specific paths
+ORIGINAL_DB_PATH = os.path.join(os.getcwd(), 'instance', 'users.db')
+TEMP_DB_PATH = '/tmp/users.db'  # Use Vercel's writable /tmp directly
 
-# Ensure tmp directory exists
-if not os.path.exists(TMP_DIR):
-    os.makedirs(TMP_DIR)  # Create the directory if it doesn't exist
-
-# Copy database if it doesn't exist in /tmp/
-if not os.path.exists(TEMP_DB_PATH):
+# Copy database to writable location if it doesn't exist
+if not os.path.exists(TEMP_DB_PATH) and os.path.exists(ORIGINAL_DB_PATH):
     shutil.copyfile(ORIGINAL_DB_PATH, TEMP_DB_PATH)
 
-# ✅ Ensure the copied database is writable
-os.chmod(TEMP_DB_PATH, stat.S_IWUSR | stat.S_IRUSR)  # Give write permission
-
-# SQLite Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{TEMP_DB_PATH}"
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{TEMP_DB_PATH}?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your_secret_key_here'
 
+# Initialize extensions
+from db.extensions import db, bcrypt
 db.init_app(app)
 bcrypt.init_app(app)
-
-from api.routes import api_bp
-from api.auth.authentication import auth_api_bp
-app.register_blueprint(api_bp, url_prefix='/api')
-app.register_blueprint(auth_api_bp, url_prefix='/api/auth')
-
-with app.app_context():
-    db.create_all()
-    db.session.commit()
 
 @app.route('/')
 def home():
     return jsonify({"message": "home"})
-
-@app.route('/test_write', methods=['POST'])
-def test_write():
-    try:
-        with app.app_context():
-            db.session.execute("INSERT INTO user (fname, lname, email, password, role) VALUES ('John', 'Doe', 'john@example.com', 'test', 'Admin')")
-            db.session.commit()
-        return {"message": "Write operation successful"}, 200
-    except Exception as e:
-        return {"error": str(e)}, 500
 
 if __name__ == '__main__':
     app.run(debug=True)
