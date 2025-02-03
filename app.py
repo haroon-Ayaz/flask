@@ -1,4 +1,5 @@
 import shutil
+import stat
 
 from flask import Flask, jsonify
 from flask_cors import CORS
@@ -25,6 +26,9 @@ if not os.path.exists(TMP_DIR):
 # Copy database if it doesn't exist in /tmp/
 if not os.path.exists(TEMP_DB_PATH):
     shutil.copyfile(ORIGINAL_DB_PATH, TEMP_DB_PATH)
+
+# ✅ Ensure the copied database is writable
+os.chmod(TEMP_DB_PATH, stat.S_IWUSR | stat.S_IRUSR)  # Give write permission
 
 # SQLite Database Configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{TEMP_DB_PATH}"
@@ -56,6 +60,6 @@ def test_write():
         return {"message": "Write operation successful"}, 200
     except Exception as e:
         return {"error": str(e)}, 500
-    
+
 if __name__ == '__main__':
     app.run(debug=True)
