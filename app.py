@@ -1,3 +1,5 @@
+import shutil
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 import sys
@@ -11,8 +13,21 @@ from db.extensions import db, bcrypt
 app = Flask(__name__)
 CORS(app)
 
+# Paths
+TMP_DIR = os.path.join(os.getcwd(), "tmp")  # Use "tmp" inside project directory
+ORIGINAL_DB_PATH = "instance/users.db"
+TEMP_DB_PATH = os.path.join(TMP_DIR, "users.db")
+
+# Ensure tmp directory exists
+if not os.path.exists(TMP_DIR):
+    os.makedirs(TMP_DIR)  # Create the directory if it doesn't exist
+
+# Copy database if it doesn't exist in /tmp/
+if not os.path.exists(TEMP_DB_PATH):
+    shutil.copyfile(ORIGINAL_DB_PATH, TEMP_DB_PATH)
+
 # SQLite Database Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{TEMP_DB_PATH}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your_secret_key_here'
 
