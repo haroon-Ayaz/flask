@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from db.models import Patient, User  # Modified import path
 from db.extensions import db
 import os, json
+from pathlib import Path
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -106,9 +107,13 @@ def get_discharged_patients():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api_bp.route('/populatedata', methods=['GET'])
+@api_bp.route('/populate_patient_data', methods=['GET'])
 def populatedata():
-    file_path = r"D:\Projects\NHS\flask-mvp\utils\patients.json"
+    # Get the absolute path of the current file
+    current_dir = Path(__file__).parent
+    # Go up one level to reach flask-mvp directory
+    base_dir = current_dir.parent
+    file_path = base_dir / "utils" / "patients.json"
 
     if not os.path.exists(file_path):
         return jsonify({"message": "File not found"}), 404
@@ -117,34 +122,40 @@ def populatedata():
         with open(file_path, "r") as file:
             patients = json.load(file)
 
-        for patient in patients:
-            try:
-                new_patient = Patient(
-                    rxkid=patient["rxkid"],
-                    title=patient["title"],
-                    fname=patient["fname"],
-                    lname=patient["lname"],
-                    address=patient["address"],
-                    postcode=patient["postcode"],
-                    phone_number=patient["phone_number"],
-                    home_number=patient["home_number"],
-                    problem=patient["problem"],
-                    assigned_to=patient["assignto"],
-                    status=patient["status"],
-                )
-                db.session.add(new_patient)
-                db.session.commit()  # Commit after each insert
-                db.session.expunge_all()  # Clear session cache
-            except Exception as e:
-                db.session.rollback()  # Rollback failed transaction
-                print(f"Failed to insert patient {patient['rxkid']}: {str(e)}")
-                continue
+        db.session.execute(db.delete(Patient))
+
+        db.session.bulk_insert_mappings(Patient, patients)
+        db.session.commit()
 
         return jsonify({"message": "Patients data populated successfully"}), 201
 
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": f"Error: {str(e)}"}), 500
+
+@api_bp.route('/popluate_user_data', methods=['GET'])
+def insert_users_orm():
+    # Define your user data as a list of dictionaries.
+    users_data = [
+        {"fname": "Alice", "lname": "Johnson", "email": "alice.johnson@example.com", "password": "password1", "role": "Admin"},
+        {"fname": "Bob", "lname": "Smith", "email": "bob.smith@example.com", "password": "password2", "role": "Clinician"},
+        {"fname": "Charlie", "lname": "Brown", "email": "charlie.brown@example.com", "password": "password3", "role": "Super User"},
+        {"fname": "Diana", "lname": "Prince", "email": "diana.prince@example.com", "password": "password4", "role": "Admin"},
+        {"fname": "Ethan", "lname": "Hunt", "email": "ethan.hunt@example.com", "password": "password5", "role": "Clinician"},
+        {"fname": "Fiona", "lname": "Shaw", "email": "fiona.shaw@example.com", "password": "password6", "role": "Super User"},
+        {"fname": "George", "lname": "Clooney", "email": "george.clooney@example.com", "password": "password7", "role": "Admin"},
+        {"fname": "Hannah", "lname": "Montana", "email": "hannah.montana@example.com", "password": "password8", "role": "Clinician"},
+        {"fname": "Ivan", "lname": "Drago", "email": "ivan.drago@example.com", "password": "password9", "role": "Super User"},
+        {"fname": "Julia", "lname": "Roberts", "email": "julia.roberts@example.com", "password": "password10", "role": "Admin"}
+    ]
+    try:
+        # Option 1: Bulk insert using the ORM
+        db.session.bulk_insert_mappings(User, users_data)
+        db.session.commit()
+        return jsonify({"message": "10 users inserted successfully using ORM!"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 @api_bp.route('/addpatient', methods=['POST'])
 def add_patient():

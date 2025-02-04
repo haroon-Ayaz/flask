@@ -1,38 +1,55 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
-import os
-import shutil
+import os, ssl
+from dotenv import load_dotenv
+from db.extensions import db
+from db.models import Patient, User
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Vercel-specific paths
-ORIGINAL_DB_PATH = os.path.join(os.getcwd(), 'instance', 'users.db')
-TEMP_DB_PATH = '/tmp/users.db'  # Use Vercel's writable /tmp directly
+# Retrieve the DATABASE_URL environment variable
+database_url = os.getenv('DATABASE_URL')
+if database_url is None:
+    raise ValueError("DATABASE_URL environment variable is not set.")
 
-# Copy database to writable location if it doesn't exist
-if not os.path.exists(TEMP_DB_PATH) and os.path.exists(ORIGINAL_DB_PATH):
-    shutil.copyfile(ORIGINAL_DB_PATH, TEMP_DB_PATH)
+# Replace 'postgres://' with 'postgresql://' if present
+database_url = database_url.replace('postgres://', 'postgresql://')
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{TEMP_DB_PATH}?check_same_thread=False'
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your_secret_key_here'
 
-# Initialize extensions
-from db.extensions import db, bcrypt
-db.init_app(app)
-bcrypt.init_app(app)
+# Set SQLAlchemy engine options
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,  # Automatically check connection health
+    'pool_recycle': 3600,   # Recycle connections after 1 hour
+    'pool_size': 10,        # Maintain up to 10 connections
+    'max_overflow': 20,     # Allow up to 20 additional connections
+    'connect_args': {
+        'sslmode': 'require',
+        'sslrootcert': ssl.get_default_verify_paths().openssl_cafile  # Use system CA
+    }
+}
+
+# Initialize database
+db.init_app(app=app)
+
+# Create tables (run this once)
+with app.app_context():
+    db.drop_all()
+    db.create_all()
+    db.session.commit()
 
 # Register blueprints
 from api.routes import api_bp
 from api.auth.authentication import auth_api_bp
+
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(auth_api_bp, url_prefix='/api/auth')
-
-# Initialize database
-with app.app_context():
-    db.create_all()
 
 @app.route('/')
 def home():

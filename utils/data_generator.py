@@ -23,7 +23,7 @@ def generate_patient_data(num_patients=100):
             "phone_number": fake.phone_number(),
             "home_number": fake.phone_number(),
             "problem": fake.sentence(nb_words=6),
-            "assignto": random.choice(clinicians) if status == "Procedure" else None,
+            "assigned_to": random.choice(clinicians) if status == "Procedure" else None,
             "status": status,
         }
         patients.append(patient)
