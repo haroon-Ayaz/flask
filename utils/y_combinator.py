@@ -19,7 +19,7 @@ def generate_directory_tree(root_dir, indent='', last=True, is_root=True):
     entries = [os.path.join(root_dir, entry) for entry in entries]
 
     for index, entry in enumerate(entries):
-        if os.path.basename(entry) in ['.venv', '.vercel', '__pycache__', '.git']:  # Add folders to ignore here
+        if os.path.basename(entry) in ['.venv', '.vercel', '__pycache__', '.git', '.idea', '.next', 'node_modules']:  # Add folders to ignore here
             continue
         is_last = index == len(entries) - 1
         new_indent = indent + ('    ' if last else '│   ')

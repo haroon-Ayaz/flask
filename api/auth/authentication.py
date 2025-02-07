@@ -3,7 +3,7 @@ from db.models import User
 from db.extensions import db, bcrypt
 from functools import wraps
 
-auth_api_bp = Blueprint('api/auth', __name__, url_prefix='/api/auth')
+auth_api_bp = Blueprint('api/custom-auth', __name__, url_prefix='/api/custom-auth')
 
 # Middleware to restrict access to authenticated users
 def login_required(f):

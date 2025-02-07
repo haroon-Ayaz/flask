@@ -259,6 +259,51 @@ def get_statistics():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@api_bp.route('/send_sms', methods=['POST'])
+def send_sms():
+    """Send an SMS notification using the GOV.UK Notify API."""
+
+    # Extract JSON data from request
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid request, no JSON payload received"}), 400
+
+    recipient_number = data.get("recipient_number")
+    appointment_date = data.get("date")
+
+    print(f'Recipient number: {recipient_number}')
+    print(f'Appointment date: {appointment_date}')
+
+    # Configuration
+    API_KEY = "adalovelace-8413bf9f-5a51-4f58-a46c-fc4eb185fe50-949fb1be-bc38-49e2-a668-45c3157d59ed"
+    TEMPLATE_ID = "a6e1a749-f102-45ea-979e-5a21586275f5"
+
+    # Initialize the API client
+    try:
+        from notifications_python_client.notifications import NotificationsAPIClient
+        client = NotificationsAPIClient(API_KEY)
+    except Exception as e:
+        return jsonify({"error": "Failed to initialize Notify API client", "details": str(e)}), 500
+
+    # Attempt to send SMS notification
+    try:
+        response = client.send_sms_notification(
+            phone_number=recipient_number,
+            template_id=TEMPLATE_ID,
+            personalisation={"date": appointment_date},
+            reference="appointment_reminder"
+        )
+
+        return jsonify({
+            "message": "SMS sent successfully!",
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": "Failed to send SMS notification",
+            "details": str(e)
+        }), 500
+
 @api_bp.route('/get_clinicians', methods=['GET'])
 def get_clinicians():
     try:

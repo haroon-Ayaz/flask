@@ -1,0 +1,1783 @@
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\page.js
+========================================
+
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CalendarIcon, ActivityIcon, FileTextIcon, UsersIcon, LayoutDashboardIcon } from "lucide-react"
+import AddPatient from "@/app/updates/utils/addPatient"
+import AllList from "@/app/updates/utils/allPatients"
+import ProcedureList from "@/app/updates/utils/procedures"
+// import DischargeList from "@/app/dashboard/components/dischargedPatients"
+import WaitingList from "@/app/updates/utils/waitingList"
+import { fetchData } from "@/app/updates/utils/utils"
+
+export default function Dashboard() {
+    const [role, setRole] = useState("")
+    const [email, setEmail] = useState("")
+    const [stats, setStats] = useState({})
+    const [cli, setCli] = useState([])
+    const [cliTtl, setCliTtl] = useState(0)
+    const [fname, setFname] = useState("")
+    const router = useRouter()
+
+    useEffect(() => {
+        const storedRole = localStorage.getItem("userRole")
+        const storedEmail = localStorage.getItem("userEmail")
+        const storedFname = localStorage.getItem("fname")
+        if (!storedRole) {
+            router.push("/auth/login")
+        } else {
+            setRole(storedRole)
+            setEmail(storedEmail)
+            setFname(storedFname)
+        }
+    }, [router])
+
+    useEffect(() => {
+        const fetchClinicians = async () => {
+            const data = await fetchData("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/get_clinicians")
+            setCli(data.clinicians)
+            setCliTtl(data.total_clinicians)
+        }
+
+        const fetchStatistics = async () => {
+            const data = await fetchData("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/get_statistics")
+            setStats(data)
+        }
+
+        fetchClinicians()
+        fetchStatistics()
+
+        const interval = setInterval(() => {
+            fetchClinicians()
+            fetchStatistics()
+        }, 2000)
+
+        return () => clearInterval(interval)
+    }, [])
+
+    if (!role) {
+        return <div className="flex items-center justify-center h-screen">Loading...</div>
+    }
+
+    const StatCard = ({ title, value, icon: Icon, subtext }) => (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{value}</div>
+                <p className="text-xs text-muted-foreground">{subtext}</p>
+            </CardContent>
+        </Card>
+    )
+
+    return (
+        <div className="flex flex-col min-h-screen bg-background">
+            <header className="sticky top-0 z-40 border-b bg-background">
+                <div className="max-w-7xl mx-auto flex h-16 items-center justify-between py-">
+                    <div className="flex items-center space-x-4">
+                        <LayoutDashboardIcon className="h-6 w-6" />
+                        <h1 className="text-xl font-bold">NHS Healthcare Dashboard</h1>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-muted-foreground">Welcome, {fname}</span>
+                        <span className="text-sm font-semibold">{role}</span>
+                    </div>
+                </div>
+            </header>
+
+            <main className="flex-1 max-w-7xl mx-auto py-6">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+                    <StatCard
+                        title="Waiting List"
+                        value={stats.total_waiting || 0}
+                        icon={CalendarIcon}
+                        subtext="Patients waiting"
+                    />
+                    <StatCard
+                        title="Ongoing Procedures"
+                        value={stats.total_procedures || 0}
+                        icon={FileTextIcon}
+                        subtext="Current procedures"
+                    />
+                    <StatCard
+                        title="Discharged Patients"
+                        value={stats.total_discharged || 0}
+                        icon={ActivityIcon}
+                        subtext="Recently discharged"
+                    />
+                    <StatCard title="Active Clinicians" value={cliTtl} icon={UsersIcon} subtext="Available staff" />
+                </div>
+
+                <Tabs defaultValue="all-list" className="space-y-4">
+                    <TabsList className="grid w-full grid-cols-4 lg:grid-cols-5 h-auto">
+                        <TabsTrigger value="all-list">All Patients</TabsTrigger>
+                        <TabsTrigger value="total-waiting-list">Waiting List</TabsTrigger>
+                        <TabsTrigger value="procedures">Procedures</TabsTrigger>
+                        <TabsTrigger value="discharged">Discharged</TabsTrigger>
+                        {(role === "Admin" || role === "Super User") && <TabsTrigger value="add-patient">Add Patient</TabsTrigger>}
+                    </TabsList>
+                    <TabsContent value="all-list">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>All Patients</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <AllList />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="total-waiting-list">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Waiting List</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <WaitingList />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="procedures">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Ongoing Procedures</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ProcedureList />
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    <TabsContent value="discharged">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Discharged Patients</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {/*<DischargeList />*/}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                    {(role === "Admin" || role === "Super User") && (
+                        <TabsContent value="add-patient">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Add New Patient</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <AddPatient />
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+                    )}
+                </Tabs>
+            </main>
+
+            <footer className="border-t bg-muted">
+                <div className="container flex h-16 items-center justify-center">
+                    <p className="text-sm text-muted-foreground">© 2025 NHS Healthcare. All rights reserved.</p>
+                </div>
+            </footer>
+        </div>
+    )
+}
+
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\AssignPatientDialog.js
+========================================
+
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Calendar } from "@/components/ui/calendar"
+import { format } from "date-fns"
+import { CalendarIcon } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+
+export function AssignPatientDialog({ patient, clinicians, onAssign }) {
+    const [open, setOpen] = useState(false)
+    const [selectedClinician, setSelectedClinician] = useState("")
+    const [appointmentDate, setAppointmentDate] = useState(new Date())
+    const [appointmentTime, setAppointmentTime] = useState("")
+    const [phoneNumber, setPhoneNumber] = useState("")
+
+    const sendSMS = async (recipientNumber, date) => {
+        try {
+            const response = await fetch('https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/send_sms', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipient_number: recipientNumber, date: date })
+            });
+            const text = await response.text();
+            console.log('Raw response:', text);
+            const result = JSON.parse(text);
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to send SMS');
+            }
+
+            console.log('SMS sent successfully:', result);
+            return result;
+        } catch (error) {
+            console.error('Error sending SMS:', error);
+            throw error;
+        }
+    };
+
+    const handleAssign = async () => {
+        // Format the appointment date and time
+        const formattedDateTime = `${format(appointmentDate, "dd/MM/yyyy")} at ${appointmentTime}`;
+        const message = `SWBH Endoscopy Appointment Reminder: Hi ${patient.fname}, this is a reminder that you have a procedure booked for ${formattedDateTime}.\n\nPlease respond back with CANCEL if no longer needed.`;
+        console.log(message);
+        onAssign(patient.rxkid, selectedClinician, appointmentDate, appointmentTime, phoneNumber, message);
+        setOpen(false);
+        try {
+            await sendSMS(phoneNumber, formattedDateTime);
+        } catch (error) {
+            console.error("Error sending SMS:", error);
+        }
+    };
+
+    return (
+        <>
+            <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+                Assign
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Assign Patient to Clinician</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="clinician" className="text-right">
+                                Clinician
+                            </Label>
+                            <Select onValueChange={setSelectedClinician} value={selectedClinician}>
+                                <SelectTrigger className="w-[180px] col-span-3">
+                                    <SelectValue placeholder="Select clinician" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {clinicians.map((c) => (
+                                        <SelectItem key={c} value={c}>
+                                            {c}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="date" className="text-right">
+                                Date
+                            </Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={`w-[280px] justify-start text-left font-normal col-span-3`}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {appointmentDate ? format(appointmentDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={appointmentDate} onSelect={setAppointmentDate} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="time" className="text-right">
+                                Time
+                            </Label>
+                            <Input
+                                id="time"
+                                type="time"
+                                value={appointmentTime}
+                                onChange={(e) => setAppointmentTime(e.target.value)}
+                                className="col-span-3"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="phone" className="text-right">
+                                Phone Number
+                            </Label>
+                            <Input
+                                id="phone"
+                                type="tel"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                                className="col-span-3"
+                                placeholder="Enter patient's phone number"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={handleAssign}>Confirm Assignment</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
+    )
+}
+
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\DataTable.js
+========================================
+
+"use client";
+
+import React, {useState} from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { AssignPatientDialog } from "./AssignPatientDialog";
+
+function getStatusVariant(status) {
+    switch (status.toLowerCase()) {
+        case "waiting":
+            return "warning";
+        case "under procedure":
+            return "default";
+        case "discharged":
+            return "success";
+        default:
+            return "secondary";
+    }
+}
+
+export default function DataTable({
+  columns,
+  data,
+  role,
+  clinicians,
+  handleAssign,
+  appointmentDate,
+  appointmentTime,
+  setAppointmentDate,
+  setAppointmentTime,
+  confirmAssignment,
+}) {
+    const [selectedClinician, setSelectedClinician] = useState("");
+    return (
+        <div className="rounded-lg border border-gray-200 overflow-hidden">
+            <Table>
+                <TableHeader>
+                    <TableRow className="bg-gray-50">
+                        {columns.map((col) => (
+                            <TableHead
+                                key={col.id}
+                                className="py-4 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            >
+                                {col.label}
+                            </TableHead>
+                        ))}
+                        {(role === "Admin" || role === "Super User") && (
+                            <TableHead className="py-4 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Assign To
+                            </TableHead>
+                        )}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {data.map((row, rowIndex) => (
+                        <TableRow
+                            key={row.id}
+                            className={`${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"} hover:bg-blue-50 transition-colors duration-150`}
+                        >
+                            {columns.map((col) => (
+                                <TableCell key={col.id} className="py-4 px-4 text-sm text-gray-900">
+                                    {col.id === "status" ? (
+                                        <Badge variant={getStatusVariant(row[col.id])} className="font-medium">
+                                            {row[col.id]}
+                                        </Badge>
+                                    ) : (
+                                        row[col.id]
+                                    )}
+                                </TableCell>
+                            ))}
+                            {(role === "Admin" || role === "Super User") && (
+                                <TableCell className="py-4 px-4">
+                                    <AssignPatientDialog patient={row} clinicians={clinicians} onAssign={confirmAssignment} />
+                                </TableCell>
+                            )}
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\FilterBar.js
+========================================
+
+"use client";
+
+import React from "react";
+import { motion } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { X, Search } from "lucide-react";
+
+export default function FilterBar({ filters, columns, updateFilter, removeFilter }) {
+    return (
+        <>
+            {Object.keys(filters).length > 0 && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="space-y-3 mb-6"
+                >
+                    {Object.entries(filters).map(([id, filter]) => (
+                        <motion.div
+                            key={id}
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            exit={{ x: -20, opacity: 0 }}
+                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        >
+                            <Search className="h-4 w-4 text-gray-500" />
+                            <Select value={filter.column} onValueChange={(value) => updateFilter(id, "column", value)}>
+                                <SelectTrigger className="w-[200px] bg-white">
+                                    <SelectValue placeholder="Select column" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {columns.map((col) => (
+                                        <SelectItem key={col.id} value={col.id}>
+                                            {col.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                placeholder="Filter value"
+                                value={filter.value}
+                                onChange={(e) => updateFilter(id, "value", e.target.value)}
+                                className="flex-grow bg-white"
+                            />
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeFilter(id)}
+                                className="hover:bg-gray-200 hover:text-red-600 transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </motion.div>
+                    ))}
+                </motion.div>
+            )}
+        </>
+    );
+}
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\old_tableComponent.js
+========================================
+
+import React, { useState, useMemo } from "react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
+    ChevronLeft,
+    ChevronRight,
+    Filter,
+    X,
+    LayoutGrid,
+    LayoutList,
+    Search,
+    Calendar,
+    MessageSquare,
+} from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { format } from "date-fns"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+
+export default function TableComponent({ columns, data, role, clinicians, onAssignPatient }) {
+    const [filters, setFilters] = useState({})
+    const [currentPage, setCurrentPage] = useState(1)
+    const [viewMode, setViewMode] = useState("standard")
+    const [selectedPatient, setSelectedPatient] = useState(null)
+    const [appointmentDate, setAppointmentDate] = useState(new Date())
+    const [appointmentTime, setAppointmentTime] = useState("")
+    const itemsPerPage = 10
+
+    const compactColumns = columns.filter((col) => ["rxkid", "fname", "sname", "problem"].includes(col.id))
+
+    const activeColumns = viewMode === "standard" ? columns : compactColumns
+
+    // Rest of the state management code remains the same
+    const addFilter = () => {
+        const newFilter = { column: columns[0].id, value: "" }
+        setFilters((prev) => ({ ...prev, [Date.now()]: newFilter }))
+    }
+
+    const updateFilter = (id, field, value) => {
+        setFilters((prev) => ({
+            ...prev,
+            [id]: { ...prev[id], [field]: value },
+        }))
+        setCurrentPage(1)
+    }
+
+    const removeFilter = (id) => {
+        setFilters((prev) => {
+            const newFilters = { ...prev }
+            delete newFilters[id]
+            return newFilters
+        })
+    }
+
+    const filteredData = useMemo(() => {
+        return data.filter((row) => {
+            return Object.values(filters).every((filter) => {
+                const cellValue = String(row[filter.column]).toLowerCase()
+                return cellValue.includes(filter.value.toLowerCase())
+            })
+        })
+    }, [data, filters])
+
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage)
+    const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+    const handleAssign = (patient) => {
+        setSelectedPatient(patient)
+    }
+
+    const confirmAssignment = (clinician) => {
+        if (selectedPatient && appointmentDate && appointmentTime) {
+            onAssignPatient(selectedPatient.rxkid, clinician, appointmentDate, appointmentTime)
+            setSelectedPatient(null)
+            setAppointmentDate(new Date())
+            setAppointmentTime("")
+        }
+    }
+
+    return (
+        <Card className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+            <CardHeader className="bg-gray-50 border-b border-gray-200 p-4">
+                <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center space-x-4">
+                        <CardTitle className="text-lg font-semibold text-gray-900">Patient Data</CardTitle>
+                        <Tabs value={viewMode} onValueChange={setViewMode} className="hidden md:block">
+                            <TabsList className="grid w-[200px] grid-cols-2">
+                                <TabsTrigger value="standard" className="flex items-center gap-2">
+                                    <LayoutGrid className="h-4 w-4" />
+                                    Standard
+                                </TabsTrigger>
+                                <TabsTrigger value="compact" className="flex items-center gap-2">
+                                    <LayoutList className="h-4 w-4" />
+                                    Compact
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            onClick={addFilter}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2 hover:bg-gray-100"
+                        >
+                            <Filter className="h-4 w-4" />
+                            Add Filter
+                        </Button>
+                        <Select defaultValue={viewMode} onValueChange={setViewMode} className="md:hidden">
+                            <SelectTrigger className="w-[130px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="standard">
+                  <span className="flex items-center gap-2">
+                    <LayoutGrid className="h-4 w-4" />
+                    Standard
+                  </span>
+                                </SelectItem>
+                                <SelectItem value="compact">
+                  <span className="flex items-center gap-2">
+                    <LayoutList className="h-4 w-4" />
+                    Compact
+                  </span>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="p-6">
+                <AnimatePresence>
+                    {Object.keys(filters).length > 0 && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="space-y-3 mb-6"
+                        >
+                            {Object.entries(filters).map(([id, filter]) => (
+                                <motion.div
+                                    key={id}
+                                    initial={{ x: -20, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    exit={{ x: -20, opacity: 0 }}
+                                    className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                                >
+                                    <Search className="h-4 w-4 text-gray-500" />
+                                    <Select value={filter.column} onValueChange={(value) => updateFilter(id, "column", value)}>
+                                        <SelectTrigger className="w-[200px] bg-white">
+                                            <SelectValue placeholder="Select column" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {columns.map((col) => (
+                                                <SelectItem key={col.id} value={col.id}>
+                                                    {col.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Input
+                                        placeholder="Filter value"
+                                        value={filter.value}
+                                        onChange={(e) => updateFilter(id, "value", e.target.value)}
+                                        className="flex-grow bg-white"
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeFilter(id)}
+                                        className="hover:bg-gray-200 hover:text-red-600 transition-colors"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </motion.div>
+                            ))}
+                            <Separator className="my-6" />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-gray-50">
+                                {activeColumns.map((col) => (
+                                    <TableHead
+                                        key={col.id}
+                                        className="py-4 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                    >
+                                        {col.label}
+                                    </TableHead>
+                                ))}
+                                {(role === "Admin" || role === "Super User") && (
+                                    <TableHead className="py-4 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Assign To
+                                    </TableHead>
+                                )}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {paginatedData.map((row, rowIndex) => (
+                                <TableRow
+                                    key={row.id}
+                                    className={`
+                    ${rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    hover:bg-blue-50 transition-colors duration-150
+                  `}
+                                >
+                                    {activeColumns.map((col) => (
+                                        <TableCell key={col.id} className="py-4 px-4 text-sm text-gray-900">
+                                            {col.id === "status" ? (
+                                                <Badge variant={getStatusVariant(row[col.id])} className="font-medium">
+                                                    {row[col.id]}
+                                                </Badge>
+                                            ) : (
+                                                row[col.id]
+                                            )}
+                                        </TableCell>
+                                    ))}
+                                    {(role === "Admin" || role === "Super User") && (
+                                        <TableCell className="py-4 px-4">
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="outline" size="sm" onClick={() => handleAssign(row)}>
+                                                        Assign
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="sm:max-w-[425px]">
+                                                    <DialogHeader>
+                                                        <DialogTitle>Assign Patient to Clinician</DialogTitle>
+                                                    </DialogHeader>
+                                                    <div className="grid gap-4 py-4">
+                                                        <div className="grid grid-cols-4 items-center gap-4">
+                                                            <Label htmlFor="clinician" className="text-right">
+                                                                Clinician
+                                                            </Label>
+                                                            <Select onValueChange={(value) => confirmAssignment(value)}>
+                                                                <SelectTrigger className="w-[180px] col-span-3">
+                                                                    <SelectValue placeholder="Select clinician" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {clinicians.map((c) => (
+                                                                        <SelectItem key={c} value={c}>
+                                                                            {c}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div className="grid grid-cols-4 items-center gap-4">
+                                                            <Label htmlFor="date" className="text-right">
+                                                                Date
+                                                            </Label>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
+                                                                    <Button
+                                                                        variant={"outline"}
+                                                                        className={`w-[280px] justify-start text-left font-normal col-span-3 ${
+                                                                            !appointmentDate && "text-muted-foreground"
+                                                                        }`}
+                                                                    >
+                                                                        <Calendar className="mr-2 h-4 w-4" />
+                                                                        {appointmentDate ? format(appointmentDate, "PPP") : <span>Pick a date</span>}
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0">
+                                                                    <CalendarComponent
+                                                                        mode="single"
+                                                                        selected={appointmentDate}
+                                                                        onSelect={setAppointmentDate}
+                                                                        initialFocus
+                                                                    />
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                        <div className="grid grid-cols-4 items-center gap-4">
+                                                            <Label htmlFor="time" className="text-right">
+                                                                Time
+                                                            </Label>
+                                                            <Input
+                                                                id="time"
+                                                                type="time"
+                                                                value={appointmentTime}
+                                                                onChange={(e) => setAppointmentTime(e.target.value)}
+                                                                className="col-span-3"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <DialogFooter>
+                                                        <Button type="submit" onClick={() => confirmAssignment()}>
+                                                            Confirm Assignment
+                                                        </Button>
+                                                    </DialogFooter>
+                                                </DialogContent>
+                                            </Dialog>
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+
+                {/* Appointment Reminder Preview */}
+                {selectedPatient && appointmentDate && appointmentTime && (
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 className="text-lg font-semibold mb-2 flex items-center">
+                            <MessageSquare className="mr-2 h-5 w-5 text-blue-500" />
+                            Appointment Reminder Preview
+                        </h3>
+                        <p className="text-sm text-gray-700">
+                            SWBH Endoscopy Appointment Reminder: Hi {selectedPatient.fname}, this is a reminder that you have a
+                            procedure booked for {format(appointmentDate, "dd/MM/yyyy")} at {appointmentTime}.
+                        </p>
+                        <p className="text-sm text-gray-700 mt-2">Please respond back with CANCEL if no longer needed.</p>
+                    </div>
+                )}
+
+                {/* Pagination */}
+                <div className="mt-6 flex items-center justify-between">
+                    <p className="text-sm text-gray-700">
+                        Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> -{" "}
+                        <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> of{" "}
+                        <span className="font-medium">{filteredData.length}</span> results
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="h-8 w-8 p-0"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter((page) => {
+                                const distance = Math.abs(page - currentPage)
+                                return distance === 0 || distance === 1 || page === 1 || page === totalPages
+                            })
+                            .map((page, index, array) => (
+                                <React.Fragment key={page}>
+                                    {index > 0 && array[index - 1] !== page - 1 && <span className="px-2 text-gray-500">...</span>}
+                                    <Button
+                                        variant={currentPage === page ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setCurrentPage(page)}
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        {page}
+                                    </Button>
+                                </React.Fragment>
+                            ))}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="h-8 w-8 p-0"
+                        >
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+function getStatusVariant(status) {
+    switch (status.toLowerCase()) {
+        case "waiting":
+            return "warning"
+        case "under procedure":
+            return "default"
+        case "discharged":
+            return "success"
+        default:
+            return "secondary"
+    }
+}
+
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\Pagination.js
+========================================
+
+"use client";
+
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+export default function Pagination({ currentPage, totalPages, totalResults, itemsPerPage, setCurrentPage }) {
+    return (
+        <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-gray-700">
+                Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> -{" "}
+                <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalResults)}</span> of{" "}
+                <span className="font-medium">{totalResults}</span> results
+            </p>
+            <div className="flex items-center gap-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="h-8 w-8 p-0"
+                >
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                        const distance = Math.abs(page - currentPage);
+                        return distance === 0 || distance === 1 || page === 1 || page === totalPages;
+                    })
+                    .map((page, index, array) => (
+                        <React.Fragment key={page}>
+                            {index > 0 && array[index - 1] !== page - 1 && <span className="px-2 text-gray-500">...</span>}
+                            <Button
+                                variant={currentPage === page ? "default" : "outline"}
+                                size="sm"
+                                onClick={() => setCurrentPage(page)}
+                                className="h-8 w-8 p-0"
+                            >
+                                {page}
+                            </Button>
+                        </React.Fragment>
+                    ))}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-8 p-0"
+                >
+                    <ChevronRight className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\patientDetailsDialog.js
+========================================
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+
+export function PatientDetailsDialog({ patient, onClose }) {
+    return (
+        <Dialog open={true} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Patient Details</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                    <p>
+                        <strong>Name:</strong> {patient.name}
+                    </p>
+                    <p>
+                        <strong>Problem:</strong> {patient.problem}
+                    </p>
+                    <p>
+                        <strong>Status:</strong> {patient.status}
+                    </p>
+                    {/* Add more details as needed */}
+                </div>
+                <DialogFooter>
+                    <Button onClick={onClose}>Close</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\patientEditDialog.js
+========================================
+
+import React from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
+export function PatientEditDialog({ patient, onClose, onSave }) {
+    const [editedPatient, setEditedPatient] = React.useState(patient)
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target
+        setEditedPatient((prev) => ({ ...prev, [name]: value }))
+    }
+
+    const handleSubmit = (e) => {
+        e.preventDefault()
+        onSave(editedPatient)
+    }
+
+    return (
+        <Dialog open={true} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Edit Patient Information</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit}>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">
+                                Name
+                            </Label>
+                            <Input
+                                id="name"
+                                name="name"
+                                value={editedPatient.name}
+                                onChange={handleInputChange}
+                                className="col-span-3"
+                            />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="problem" className="text-right">
+                                Problem
+                            </Label>
+                            <Input
+                                id="problem"
+                                name="problem"
+                                value={editedPatient.problem}
+                                onChange={handleInputChange}
+                                className="col-span-3"
+                            />
+                        </div>
+                        {/* Add more fields as needed */}
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit">Save changes</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\componenets\tableComponent.js
+========================================
+
+"use client"
+
+import { useState, useMemo } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import FilterBar from "./FilterBar"
+import DataTable from "./DataTable"
+import Pagination from "./Pagination"
+
+export default function TableComponent({ columns, data, role, clinicians, onAssignPatient }) {
+    const [filters, setFilters] = useState({})
+    const [currentPage, setCurrentPage] = useState(1)
+    const [viewMode, setViewMode] = useState("standard")
+    const [selectedPatient, setSelectedPatient] = useState(null)
+    const [appointmentDate, setAppointmentDate] = useState(new Date())
+    const [appointmentTime, setAppointmentTime] = useState("")
+    const [editingPatient, setEditingPatient] = useState(null)
+    const [viewingPatient, setViewingPatient] = useState(null)
+    const itemsPerPage = 10
+
+    // Decide which columns to show based on view mode.
+    const compactColumns = columns.filter((col) => ["rxkid", "fname", "sname", "problem"].includes(col.id))
+    const activeColumns = viewMode === "standard" ? columns : [...compactColumns, { id: "details", label: "Details" }]
+
+    // Filter management
+    const addFilter = () => {
+        const newFilter = { column: columns[0].id, value: "" }
+        setFilters((prev) => ({ ...prev, [Date.now()]: newFilter }))
+    }
+
+    const updateFilter = (id, field, value) => {
+        setFilters((prev) => ({
+            ...prev,
+            [id]: { ...prev[id], [field]: value },
+        }))
+        setCurrentPage(1)
+    }
+
+    const removeFilter = (id) => {
+        setFilters((prev) => {
+            const newFilters = { ...prev }
+            delete newFilters[id]
+            return newFilters
+        })
+    }
+
+    // Filtering the data
+    const filteredData = useMemo(() => {
+        return data.filter((row) =>
+            Object.values(filters).every((filter) =>
+                String(row[filter.column]).toLowerCase().includes(filter.value.toLowerCase()),
+            ),
+        )
+    }, [data, filters])
+
+    const totalPages = Math.ceil(filteredData.length / itemsPerPage)
+    const paginatedData = filteredData.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+
+    // Handler for opening the assignment dialog.
+    const handleAssign = (patient) => {
+        setSelectedPatient(patient)
+    }
+
+    // Called when the assignment is confirmed in the dialog.
+    const confirmAssignment = (clinician) => {
+        if (selectedPatient && appointmentDate && appointmentTime) {
+            onAssignPatient(selectedPatient.rxkid, clinician, appointmentDate, appointmentTime)
+            setSelectedPatient(null)
+            setAppointmentDate(new Date())
+            setAppointmentTime("")
+        }
+    }
+
+    const getStatusVariant = (status) => {
+        switch (status) {
+            case "Active":
+                return "success"
+            case "Inactive":
+                return "danger"
+            default:
+                return "default"
+        }
+    }
+
+    return (
+        <Card className="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+            <CardHeader className="bg-gray-50 border-b border-gray-200 p-4">
+                <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center space-x-4">
+                        <CardTitle className="text-lg font-semibold text-gray-900">Patient Data</CardTitle>
+                        <Tabs value={viewMode} onValueChange={setViewMode} className="hidden md:block">
+                            <TabsList className="grid w-[200px] grid-cols-2">
+                                <TabsTrigger value="standard" className="flex items-center gap-2">
+                                    Standard
+                                </TabsTrigger>
+                                <TabsTrigger value="compact" className="flex items-center gap-2">
+                                    Compact
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            onClick={addFilter}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2 hover:bg-gray-100"
+                        >
+                            Add Filter
+                        </Button>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="p-6">
+                <FilterBar filters={filters} columns={columns} updateFilter={updateFilter} removeFilter={removeFilter} />
+                {Object.keys(filters).length > 0 && <Separator className="my-6" />}
+                <DataTable
+                    columns={activeColumns}
+                    data={paginatedData}
+                    role={role}
+                    clinicians={clinicians}
+                    handleAssign={handleAssign}
+                    appointmentDate={appointmentDate}
+                    appointmentTime={appointmentTime}
+                    setAppointmentDate={setAppointmentDate}
+                    setAppointmentTime={setAppointmentTime}
+                    confirmAssignment={confirmAssignment}
+                />
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalResults={filteredData.length}
+                    itemsPerPage={itemsPerPage}
+                    setCurrentPage={setCurrentPage}
+                />
+            </CardContent>
+        </Card>
+    )
+}
+
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\utils\addPatient.js
+========================================
+
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { motion } from "framer-motion"
+import { User, Home, Phone, MapPin, FileText, Plus } from "lucide-react"
+
+export default function AddPatient() {
+    const [title, setTitle] = React.useState("Mr.");
+
+    const fillPatients = async (e) => {
+        e.preventDefault()
+
+        const formData = {
+            rxkid: document.getElementById("rxkid").value,  // Keep this for now
+            title: title, // Comment out this line
+            fname: document.getElementById("fname").value, // Then this one
+            sname: document.getElementById("sname").value, // Then this one
+            address: document.getElementById("address").value,  // And so on...
+            postcode: document.getElementById("postcode").value,
+            mobilephone: document.getElementById("mobilephone").value,
+            homephone: document.getElementById("homephone").value,
+            problem: document.getElementById("problem").value,
+        };
+
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/addpatient", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(formData),
+            })
+            const data = await response.json()
+            if (response.ok) {
+                alert("Patient added successfully!")
+            } else {
+                alert(data.message || "Failed to add patient.")
+            }
+        } catch (error) {
+            alert("Something went wrong. Please try again.")
+        }
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <Card className="max-w-4xl mx-auto shadow-lg">
+                <CardHeader className="space-y-1">
+                    <CardTitle className="text-2xl font-bold text-center">Add New Patient</CardTitle>
+                    <CardDescription className="text-center">Enter the patient's details below</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={fillPatients} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="rxkid" className="text-sm font-medium text-gray-700">
+                                    Patient ID
+                                </Label>
+                                <div className="flex items-center border border-gray-300 rounded-md shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                                  <span
+                                      className="rounded-l-md px-3 bg-gray-100 text-gray-700 font-medium border-r border-gray-300 py-2">
+                                    RXK
+                                  </span>
+                                    <Input
+                                        id="rxkid"
+                                        required
+                                        className="flex-1 border-none focus:ring-0 rounded-r-md"
+                                        placeholder="Enter ID"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="title" className="text-sm font-medium text-gray-700">
+                                    Title
+                                </Label>
+                                <Select onValueChange={setTitle} value={title}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select title"/>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Mr.">Mr.</SelectItem>
+                                        <SelectItem value="Mrs.">Mrs.</SelectItem>
+                                        <SelectItem value="Ms.">Ms.</SelectItem>
+                                        <SelectItem value="Dr.">Dr.</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="fname" className="text-sm font-medium text-gray-700">
+                                    First Name
+                                </Label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                          size={18}/>
+                                    <Input id="fname" required className="pl-10" placeholder="Enter first name"/>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="sname" className="text-sm font-medium text-gray-700">
+                                    Surname
+                                </Label>
+                                <div className="relative">
+                                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                    <Input id="sname" required className="pl-10" placeholder="Enter surname" />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="address" className="text-sm font-medium text-gray-700">
+                                    Address
+                                </Label>
+                                <div className="relative">
+                                    <Home className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                          size={18}/>
+                                    <Input id="address" required className="pl-10" placeholder="Enter full address"/>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="postcode" className="text-sm font-medium text-gray-700">
+                                    Post Code
+                                </Label>
+                                <div className="relative">
+                                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                            size={18}/>
+                                    <Input id="postcode" required className="pl-10" placeholder="Enter post code"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="homephone" className="text-sm font-medium text-gray-700">
+                                    Home Number
+                                </Label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                           size={18}/>
+                                    <Input id="homephone" required className="pl-10" placeholder="Enter home number"/>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="mobilephone" className="text-sm font-medium text-gray-700">
+                                    Mobile Number
+                                </Label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                                           size={18}/>
+                                    <Input id="mobilephone" required className="pl-10"
+                                           placeholder="Enter mobile number"/>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="problem" className="text-sm font-medium text-gray-700">
+                                Problem Description
+                            </Label>
+                            <div className="relative">
+                                <FileText className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <Textarea
+                                    id="problem"
+                                    required
+                                    className="pl-10 min-h-[100px]"
+                                    placeholder="Describe the patient's problem"
+                                />
+                            </div>
+                        </div>
+                        <Button type="submit" className="w-full">
+                            <Plus className="mr-2 h-4 w-4" /> Add Patient
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+        </motion.div>
+    )
+}
+
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\utils\allPatients.js
+========================================
+
+"use client";
+
+import React from 'react';
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import TableComponent from "@/app/updates/componenets/old_tableComponent";
+
+export default function AllList() {
+    const [patientList, setPatientList] = React.useState([]);
+
+    // Fetch patients from the API
+    const fetchPatients = async () => {
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/getdata");
+            const data = await response.json();
+            setPatientList(data);
+        } catch (error) {
+            console.error("Error fetching patient data:", error);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchPatients();
+        const interval = setInterval(fetchPatients, 2000);
+        return () => clearInterval(interval);
+    }, []);
+
+    // Define the columns for the table
+    const columns = [
+        { id: "rxkid", label: "RXK ID" },
+        { id: "title", label: "Title" },
+        { id: "fname", label: "First Name" },
+        { id: "lname", label: "Last Name" },
+        { id: "address", label: "Address" },
+        { id: "postcode", label: "Post Code" },
+        { id: "phone_number", label: "Phone Number" },
+        { id: "home_number", label: "Home Number" },
+        { id: "problem", label: "Problem" },
+        { id: "assignto", label: "Assign To" },
+        { id: "status", label: "Status" },
+    ];
+
+    // Function to determine row CSS class based on patient status
+    const getRowClass = (patient) => {
+        if (patient.status === "Waiting") return "bg-green-100";
+        if (patient.status === "Procedure") return "bg-yellow-100";
+        if (patient.status === "Discharged") return "bg-red-100";
+        return "";
+    };
+
+    return (
+        <TableComponent
+            columns={columns}
+            data={patientList}
+            getRowClass={getRowClass}
+        />
+    );
+}
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\utils\dischargePatient.js
+========================================
+
+// updates/utils/waitingList.js
+import React, { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import TableComponent from "../componenets/tableComponent";
+
+export default function DischargePatient() {
+    const [role, setRole] = useState("");
+    const [patientList, setPatientList] = useState([]);
+    const [clinicianList, setClinicianList] = useState([]);
+    const router = useRouter();
+
+    // Fetch waiting patients data
+    const fetchPatients = async () => {
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/get_discharged_patients");
+            const data = await response.json();
+            setPatientList(data);
+        } catch (error) {
+            console.error("Error fetching patient data:", error);
+        }
+    };
+
+    // Fetch clinicians data
+    const fetchClinicians = async () => {
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/get_clinicians");
+            const data = await response.json();
+            setClinicianList(data["clinicians"]);
+        } catch (error) {
+            console.error("Error fetching clinician data:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchPatients();
+        const patientInterval = setInterval(fetchPatients, 2000);
+        return () => clearInterval(patientInterval);
+    }, []);
+
+    useEffect(() => {
+        fetchClinicians();
+        const clinicianInterval = setInterval(fetchClinicians, 2000);
+        return () => clearInterval(clinicianInterval);
+    }, []);
+
+    useEffect(() => {
+        const storedRole = localStorage.getItem("userRole");
+        if (!storedRole) {
+            router.push("/auth/login");
+        } else {
+            setRole(storedRole);
+        }
+    }, [router]);
+
+    // Convert clinician objects to simple name strings
+    const clinicians = clinicianList.map(c => `${c.fname} ${c.lname}`);
+
+    // Function to assign a patient to a clinician
+    const dischargePatient = async (patientId, clinician) => {
+        console.log("Assigning Patient", patientId);
+        console.log("Clinician", clinician);
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/assignpatient", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patient_id: patientId, assigned_to: clinician }),
+            });
+            if (response.ok) {
+                console.log(`Patient ${patientId} assigned to ${clinician}`);
+                alert("Patient Assigned Successfully");
+            } else {
+                console.error("Failed to assign patient.");
+            }
+        } catch (error) {
+            console.error("Error assigning patient:", error);
+        }
+    };
+
+    // Define the table columns for patient data
+    const columns = [
+        { id: "rxkid", label: "RXK ID" },
+        { id: "title", label: "Title" },
+        { id: "fname", label: "First Name" },
+        { id: "lname", label: "Last Name" },
+        { id: "address", label: "Address" },
+        { id: "postcode", label: "Post Code" },
+        { id: "phone_number", label: "Phone Number" },
+        { id: "home_number", label: "Home Number" },
+        { id: "problem", label: "Problem" }
+    ];
+
+    return (
+        <TableComponent
+            columns={columns}
+            data={patientList}
+            role={role}
+            clinicians={clinicians}
+            onAssignPatient={assignPatient}
+        />
+    );
+}
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\utils\procedures.js
+========================================
+
+"use client";
+
+import TableComponent from "@/app/updates/componenets/tableComponent";
+import {Checkbox} from "@/components/ui/checkbox";
+import {useRouter} from "next/navigation";
+import React from 'react';
+
+export default function ProcedureList() {
+    const [role, setRole] = React.useState("");
+    const [patientList, setPatientList] = React.useState([]);
+    const router = useRouter();
+
+    // Fetch procedure patients from the API
+    const fetchPatients = React.useCallback(async () => {
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/get_procedure_patients");
+            const data = await response.json();
+            setPatientList(data);
+        } catch (error) {
+            console.error("Error fetching patient data:", error);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        fetchPatients();
+        const interval = setInterval(fetchPatients, 2000);
+        const storedRole = localStorage.getItem("userRole");
+        setRole(storedRole || "");
+        return () => clearInterval(interval);
+    }, [fetchPatients]);
+
+    if (!role && patientList.length === 0) return <p>Loading...</p>;
+
+    // Function to discharge a patient
+    const handleDischarge = async (rxkid) => {
+        console.log(`Discharging patient: ${rxkid}`);
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/discharge_patient", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patient_id: rxkid }),
+            });
+            if (response.ok) {
+                alert("Patient Discharged Successfully");
+            } else {
+                console.error("Failed to discharge patient.");
+            }
+        } catch (error) {
+            console.error("Error discharging patient:", error);
+        }
+    };
+
+    // Define the columns to be rendered by TableComponent
+    const columns = [
+        { id: "rxkid", label: "RXK ID" },
+        { id: "title", label: "Title" },
+        { id: "fname", label: "First Name" },
+        { id: "lname", label: "Last Name" },
+        { id: "address", label: "Address" },
+        { id: "postcode", label: "Post Code" },
+        { id: "phone_number", label: "Phone Number" },
+        { id: "home_number", label: "Home Number" },
+        { id: "problem", label: "Problem" },
+        { id: "assigned_to", label: "Assign To" }
+    ];
+
+    // Conditionally define an extra header cell if the user is a Clinician or Super User.
+    const extraHeader = (role === "Clinician" || role === "Super User") ? (
+        <th>Discharge The Patient</th>
+    ) : null;
+
+    // For each row, if the role permits, render an extra cell with a discharge button.
+    const extraCell = (row) => {
+        if (role === "Clinician" || role === "Super User") {
+            return (
+                <td>
+                    <button onClick={() => handleDischarge(row.rxkid)}>
+                        <Checkbox className="w-5 h-5 text-green-600 hover:text-green-800" />
+                    </button>
+                </td>
+            );
+        }
+        return null;
+    };
+
+    return (
+            <TableComponent
+                columns={columns}
+                data={patientList}
+                extraHeader={extraHeader}
+                extraCell={extraCell}
+            />
+    );
+}
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\utils\utils.js
+========================================
+
+/**
+ * Generic function to fetch JSON data from a given URL.
+ * @param {string} url - The API endpoint.
+ * @returns {Promise<any>} - Parsed JSON response.
+ */
+export async function fetchData(url) {
+    try {
+        const response = await fetch(url);
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching data:", error);
+        throw error;
+    }
+}
+
+
+========================================
+FILE: D:\Projects\NHS\frontend\src\app\updates\utils\waitingList.js
+========================================
+
+// updates/utils/waitingList.js
+import React, { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import TableComponent from "../componenets/tableComponent";
+
+export default function WaitingList() {
+    const [role, setRole] = useState("");
+    const [patientList, setPatientList] = useState([]);
+    const [clinicianList, setClinicianList] = useState([]);
+    const router = useRouter();
+
+    // Fetch waiting patients data
+    const fetchPatients = async () => {
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/get_waiting_patients");
+            const data = await response.json();
+            setPatientList(data);
+        } catch (error) {
+            console.error("Error fetching patient data:", error);
+        }
+    };
+
+    // Fetch clinicians data
+    const fetchClinicians = async () => {
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/get_clinicians");
+            const data = await response.json();
+            setClinicianList(data["clinicians"]);
+        } catch (error) {
+            console.error("Error fetching clinician data:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchPatients();
+        const patientInterval = setInterval(fetchPatients, 2000);
+        return () => clearInterval(patientInterval);
+    }, []);
+
+    useEffect(() => {
+        fetchClinicians();
+        const clinicianInterval = setInterval(fetchClinicians, 2000);
+        return () => clearInterval(clinicianInterval);
+    }, []);
+
+    useEffect(() => {
+        const storedRole = localStorage.getItem("userRole");
+        if (!storedRole) {
+            router.push("/auth/login");
+        } else {
+            setRole(storedRole);
+        }
+    }, [router]);
+
+    // Convert clinician objects to simple name strings
+    const clinicians = clinicianList.map(c => `${c.fname} ${c.lname}`);
+
+    // Function to assign a patient to a clinician
+    const assignPatient = async (patientId, clinician) => {
+        console.log("Assigning Patient", patientId);
+        console.log("Clinician", clinician);
+        try {
+            const response = await fetch("https://flask-qga8pcv7b-kyojur0s-projects.vercel.app/api/assignpatient", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ patient_id: patientId, assigned_to: clinician }),
+            });
+            if (response.ok) {
+                console.log(`Patient ${patientId} assigned to ${clinician}`);
+                alert("Patient Assigned Successfully");
+            } else {
+                console.error("Failed to assign patient.");
+            }
+        } catch (error) {
+            console.error("Error assigning patient:", error);
+        }
+    };
+
+    // Define the table columns for patient data
+    const columns = [
+        { id: "rxkid", label: "RXK ID" },
+        { id: "title", label: "Title" },
+        { id: "fname", label: "First Name" },
+        { id: "lname", label: "Last Name" },
+        { id: "address", label: "Address" },
+        { id: "postcode", label: "Post Code" },
+        { id: "phone_number", label: "Phone Number" },
+        { id: "home_number", label: "Home Number" },
+        { id: "problem", label: "Problem" }
+    ];
+
+    return (
+        <TableComponent
+            columns={columns}
+            data={patientList}
+            role={role}
+            clinicians={clinicians}
+            onAssignPatient={assignPatient}
+        />
+    );
+}
