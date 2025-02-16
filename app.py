@@ -59,7 +59,9 @@ with app.app_context():
 # Register blueprints
 from api.routes import api_bp
 from api.auth.authentication import auth_api_bp
+from api.v2.routes import v2_api_bp
 
+app.register_blueprint(v2_api_bp, url_prefix='/api/v2')
 app.register_blueprint(api_bp, url_prefix='/api')
 app.register_blueprint(auth_api_bp, url_prefix='/api/custom-auth')
 
