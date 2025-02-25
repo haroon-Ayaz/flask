@@ -1,4 +1,5 @@
 from db.extensions import db
+from datetime import datetime
 
 # User Model
 class User(db.Model):
@@ -53,6 +54,7 @@ class TestPatient(db.Model):
     appt_by_date_calculated = db.Column(db.DateTime, nullable=True)
     short_notice_flag = db.Column(db.String(5), nullable=True)
 
+# Excel Based Database
 class NewTestPatient(db.Model):
     __tablename__ = 'new_test_patient'
 
@@ -98,3 +100,16 @@ class NewTestPatient(db.Model):
     appt_by_date_ipm = db.Column(db.String(50), nullable=True)
     appt_by_date_calculated = db.Column(db.String(50), nullable=True)
     short_notice_flag = db.Column(db.String(5), nullable=True)
+
+class CallLogs(db.Model):
+    __tablename__ = 'call_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('new_test_patient.id'), nullable=False)
+    call_date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
+    call_time = db.Column(db.Time, nullable=False, default=lambda: datetime.utcnow().time())
+    admin_comment = db.Column(db.Text, nullable=True)
+
+    patient = db.relationship('NewTestPatient', backref=db.backref('call_logs', lazy=True))
+
+

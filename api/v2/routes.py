@@ -1,15 +1,52 @@
 from flask import Blueprint, jsonify, request
-from db.models import TestPatient, User, Patient  # Updated to use TestPatient instead of Patient
+from db.models import TestPatient, User, Patient, NewTestPatient, CallLogs  # Updated to use TestPatient instead of Patient
 from db.extensions import db
 import os, json
 from pathlib import Path
-from .utils import populate_test_patients_from_excel
+from .utils import populate_test_patients_from_excel, updated_data_population
+from sqlalchemy import text
+from datetime import datetime
 
 v2_api_bp = Blueprint('v2/api', __name__, url_prefix='/api/v2/')
 
 @v2_api_bp.route('/home')
 def get_home():
     return jsonify({"message": "welcome from home"})
+
+@v2_api_bp.route('/update_comments', methods=['POST'])
+def update_patients_comments():
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"Error": "Invalid request, no JSON payload received"}), 400
+
+    patient_id = data["patient_id"]
+    comment_date = data["date"]
+    comment_time = data["time"]
+    admin_name = data["admin_name"]
+    new_comment = data["patient_comment"]
+
+    # Look for the patient in NewTestPatient by rxkid
+    patient = NewTestPatient.query.filter_by(rxkid=patient_id).first()
+    if not patient:
+        return jsonify({"Error": "Patient not found"}), 404
+
+    comment = f"[{comment_date} {comment_time}] [{admin_name}] {new_comment}"
+    
+    print(f"The Newly Formatted Comment Is:\n{comment}")
+
+    # Append the new comment with a newline
+    if patient.comment and patient.comment != "N/A":
+        patient.comment = patient.comment + "\n" + comment
+    else:
+        patient.comment = new_comment
+
+    try:
+        db.session.commit()
+        return jsonify({"message": "Comments updated successfully."}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"Error": f"Failed to update comments: {str(e)}"}), 500
 
 @v2_api_bp.route('/get_test_patients', methods=['GET'])
 def get_test_patients():
@@ -51,6 +88,17 @@ def get_test_patients():
     except Exception as e:
         return jsonify({"message": f"Error: {str(e)}"}), 500
 
+@v2_api_bp.route('/raw_new_test_patient', methods=['GET'])
+def raw_new_test_patient():
+    try:
+        result = db.session.execute(text("SELECT * FROM new_test_patient;"))
+        rows = result.fetchall()
+        keys = result.keys()
+        data = [dict(zip(keys, row)) for row in rows]
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"message": f"Error: {str(e)}"}), 500
+
 @v2_api_bp.route('/populate_test_patient_data', methods=['GET'])
 def populate_test_patient_data():
     # Get the absolute path to the test patients JSON file.
@@ -79,11 +127,9 @@ def populate_test_patient_data():
 
 @v2_api_bp.route('/upload_excel', methods=["GET"])
 def upload_excel():
-    current_dir = Path(__file__).resolve().parent
-    base_dir = current_dir.parent
-    file_path = base_dir / "data" / "data.xlsx"
     try:
-        populate_test_patients_from_excel(filepath=file_path)
+        status = updated_data_population()
+        print(status)
         return jsonify({
             "message": "Data Populated Successfully"
         }), 200
@@ -111,6 +157,64 @@ def insert_users_orm():
         db.session.bulk_insert_mappings(User, users_data)
         db.session.commit()
         return jsonify({"message": "10 users inserted successfully using ORM!"}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@v2_api_bp.route('/get_call_logs', methods=['GET'])
+def get_call_logs():
+    data = request.get_json()
+    
+    print(f'Incoming Data: {data}')
+
+    if not data:
+        return jsonify({"Error": "Invalid request, no JSON payload received"}), 400
+
+    rxkid = data["rxkid"]
+
+    patient = NewTestPatient.query.filter_by(rxkid=rxkid).first()
+
+    if not patient:
+        return jsonify({"error": "Patient not found"}), 404
+
+    logs = CallLogs.query.filter_by(patient_id=patient.id).all()
+    
+    logs_data = [
+        {
+            "id": log.id,
+            "call_date": log.call_date.isoformat() if log.call_date else None,
+            "call_time": log.call_time.isoformat() if log.call_time else None,
+            "admin_comment": log.admin_comment,
+        }
+        for log in logs
+    ]
+    return jsonify(logs_data), 200
+
+@v2_api_bp.route('/update_call_logs', methods=['POST'])
+def update_call_logs():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid request, no JSON payload received"}), 400
+
+    rxkid = data.get("rxkid")
+    admin_comment = data.get("admin_comment")
+    if not rxkid or admin_comment is None:
+        return jsonify({"error": "Missing required parameters"}), 400
+
+    patient = NewTestPatient.query.filter_by(rxkid=rxkid).first()
+    if not patient:
+        return jsonify({"error": "Patient not found"}), 404
+
+    new_log = CallLogs(
+        patient_id=patient.id,
+        call_date=datetime.utcnow().date(),
+        call_time=datetime.utcnow().time(),
+        admin_comment=admin_comment
+    )
+    db.session.add(new_log)
+    try:
+        db.session.commit()
+        return jsonify({"message": "Call log updated successfully."}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -177,4 +281,50 @@ def get_statistics():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@v2_api_bp.route('/custom_data_fetching', methods=['GET'])
+def custom_fetcher():
+    # Expect the key_code parameter in the query string
+    data = request.get_json()
+    key_code = data["key_code"]
+
+    if not key_code:
+        return jsonify({"error": "Missing key_code parameter"}), 400
+
+    try:
+        # Filter NewTestPatient records based on the provided key_code
+        patients = NewTestPatient.query.filter_by(key_code=key_code).all()
+        data = [
+            {
+                "id": patient.id,
+                "external_id": patient.external_id,
+                "reporting_status": patient.reporting_status,
+                "test_type_main": patient.test_type_main,
+                "test_type": patient.test_type,
+                "waitlist_name": patient.waitlist_name,
+                "rxkid": patient.rxkid,
+                "surname": patient.surname,
+                "forename": patient.forename,
+                "points": patient.points,
+                "requires_pre_add": patient.requires_pre_add,
+                "key_code": patient.key_code,
+                "comment": patient.comment,
+                "dated": patient.dated,
+                "sub_type": patient.sub_type,
+                "referral_priority": patient.referral_priority,
+                "date_added_to_wl": patient.date_added_to_wl,
+                "adj_wl_start": patient.adj_wl_start,
+                "remvl_dttm": patient.remvl_dttm,
+                "weeks_wait": patient.weeks_wait,
+                "current_rtt_waits": patient.current_rtt_waits,
+                "indication": patient.indication,
+                "appointment_date": patient.appointment_date,
+                "appt_by_date_ipm": patient.appt_by_date_ipm,
+                "appt_by_date_calculated": patient.appt_by_date_calculated,
+                "short_notice_flag": patient.short_notice_flag,
+            }
+            for patient in patients
+        ]
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
