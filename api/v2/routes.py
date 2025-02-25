@@ -161,7 +161,7 @@ def insert_users_orm():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-@v2_api_bp.route('/get_call_logs', methods=['GET'])
+@v2_api_bp.route('/get_call_logs', methods=['GET', 'POST'])
 def get_call_logs():
     data = request.get_json()
     
@@ -281,7 +281,7 @@ def get_statistics():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@v2_api_bp.route('/custom_data_fetching', methods=['GET'])
+@v2_api_bp.route('/custom_data_fetching', methods=['GET', 'POST'])
 def custom_fetcher():
     # Expect the key_code parameter in the query string
     data = request.get_json()
