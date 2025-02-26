@@ -162,10 +162,27 @@ def update_call_logs():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@v2_api_bp.route('/refresh_database', methods=['GET'])
+def refreshEntireDataBase():
+    from db.extensions import db
+    # Drop all existing tables and create new ones
+    db.drop_all()
+    db.create_all()
+    db.session.commit()
 
+    import requests
+    base_url = "https://flask-nine-green.vercel.app"
+    user_resp = requests.get(f"{base_url}/api/v2/populator/popluate_user_data")
+    patient_resp = requests.get(f"{base_url}/api/v2/populator/populate_given_patient_data")
+    call_logs_resp = requests.get(f"{base_url}/api/v2/populator/populate_call_logs")
+    key_code_logs = requests.get(f"{base_url}/api/v2/populator/update_key_codes")
 
-
-
+    return jsonify({
+        "user_data": user_resp.json(),
+        "patient_data": patient_resp.json(),
+        "call_logs": call_logs_resp.json(),
+        "key_code_logs": key_code_logs.json()
+    }), 200
 
 @v2_api_bp.route('/send_sms', methods=['POST'])
 def send_sms():

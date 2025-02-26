@@ -108,3 +108,27 @@ def insert_users_orm():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+@populator_api.route('/update_key_codes', methods=['GET'])
+def update_key_codes():
+    from random import sample
+    # Query all rows with key_code "N/A"
+    rows = NewTestPatient.query.filter_by(key_code="N/A").all()
+    if len(rows) < 18:
+        return jsonify({"error": "Not enough rows with key_code 'N/A'"}), 400
+
+    # Randomly select 10 rows and update key_code to "3- Ongoing Procedure"
+    first_selection = sample(rows, 10)
+    for row in first_selection:
+        row.key_code = "3- Ongoing Procedure"
+
+    # Get remaining rows with key_code "N/A"
+    remaining = [r for r in rows if r not in first_selection]
+    # Randomly select 8 rows from the remaining and update key_code to "4 - Discharged"
+    second_selection = sample(remaining, 8)
+    for row in second_selection:
+        row.key_code = "4 - Discharged"
+
+    db.session.commit()
+    return jsonify({"message": "Key codes updated successfully."}), 200
+
