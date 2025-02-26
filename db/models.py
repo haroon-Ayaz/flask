@@ -104,12 +104,11 @@ class NewTestPatient(db.Model):
 class CallLogs(db.Model):
     __tablename__ = 'call_logs'
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('new_test_patient.id'), nullable=False)
     call_date = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
     call_time = db.Column(db.Time, nullable=False, default=lambda: datetime.utcnow().time())
     admin_comment = db.Column(db.Text, nullable=True)
-
     patient = db.relationship('NewTestPatient', backref=db.backref('call_logs', lazy=True))
 
 

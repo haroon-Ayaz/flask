@@ -1,13 +1,12 @@
-from flask import abort
-from flask import Flask, jsonify, request
+from flask import abort, Flask, jsonify, request
 from flask_cors import CORS
 import os, ssl
 from dotenv import load_dotenv
 from db.extensions import db
 from db.models import Patient, User
+import requests  # Only needed if you choose to use requests instead of test_client
 
 load_dotenv()
-
 
 ALLOWED_USER_AGENTS = ["Chrome/", "Firefox/", "Safari/", "Edg/", "Opera/"]
 
@@ -25,9 +24,7 @@ CORS(app,
     }
 )
 
-
 database_url = "postgresql://neondb_owner:npg_mX6s3WplMxPy@ep-red-breeze-a236w9iq-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require"
-
 # Replace 'postgres://' with 'postgresql://' if present
 database_url = database_url.replace('postgres://', 'postgresql://')
 
@@ -51,8 +48,9 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
 # Initialize database
 db.init_app(app=app)
 
-# Create tables (run this once)
+# Create tables (drop everything first to start with a clean slate)
 with app.app_context():
+    db.drop_all()
     db.create_all()
     db.session.commit()
 
@@ -60,10 +58,12 @@ with app.app_context():
 from api.routes import api_bp
 from api.auth.authentication import auth_api_bp
 from api.v2.routes import v2_api_bp
+from api.v2.populator import populator_api
 
-app.register_blueprint(v2_api_bp, url_prefix='/api/v2')
 app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(v2_api_bp, url_prefix='/api/v2')
 app.register_blueprint(auth_api_bp, url_prefix='/api/custom-auth')
+app.register_blueprint(populator_api, url_prefix='/api/v2/populator')
 
 @app.route('/')
 def home():
@@ -99,4 +99,11 @@ def test_api():
         return jsonify(post_data), 201
 
 if __name__ == '__main__':
+    # Use Flask's test client to call self API endpoints after resetting the DB
+    with app.app_context():
+        with app.test_client() as client:
+            # Call the endpoints to populate user data and patient data
+            client.get('/api/v2/populator/popluate_user_data')
+            client.get('/api/v2/populator/populate_given_patient_data')
+            client.get('/api/v2/populator/populate_call_logs')
     app.run(debug=True)

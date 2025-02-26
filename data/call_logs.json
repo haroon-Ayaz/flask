@@ -1,0 +1,25 @@
+[{
+  "id": 1,
+  "patient_id": 1,
+  "call_date": "2024-09-01",
+  "call_time": "10:30:00",
+  "admin_comment": "Initial call, left voicemail."
+}, {
+  "id": 2,
+  "patient_id": 2,
+  "call_date": "2024-09-02",
+  "call_time": "11:15:00",
+  "admin_comment": "Called and confirmed appointment."
+}, {
+  "id": 3,
+  "patient_id": 3,
+  "call_date": "2024-09-03",
+  "call_time": "14:00:00",
+  "admin_comment": "Patient requested callback."
+}, {
+  "id": 4,
+  "patient_id": 1,
+  "call_date": "2024-09-04",
+  "call_time": "16:45:00",
+  "admin_comment": "Follow-up call made."
+}]

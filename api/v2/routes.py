@@ -4,7 +4,7 @@ from db.extensions import db
 import os, json
 from pathlib import Path
 from .utils import populate_test_patients_from_excel, updated_data_population
-from sqlalchemy import text
+from sqlalchemy import Text, func, text
 from datetime import datetime
 
 v2_api_bp = Blueprint('v2/api', __name__, url_prefix='/api/v2/')
@@ -20,26 +20,21 @@ def update_patients_comments():
     if not data:
         return jsonify({"Error": "Invalid request, no JSON payload received"}), 400
 
-    patient_id = data["patient_id"]
-    comment_date = data["date"]
-    comment_time = data["time"]
-    admin_name = data["admin_name"]
-    new_comment = data["patient_comment"]
+    patient_id = data["patientId"]
+    patient_comment = data["comment"]
 
     # Look for the patient in NewTestPatient by rxkid
     patient = NewTestPatient.query.filter_by(rxkid=patient_id).first()
     if not patient:
         return jsonify({"Error": "Patient not found"}), 404
-
-    comment = f"[{comment_date} {comment_time}] [{admin_name}] {new_comment}"
     
-    print(f"The Newly Formatted Comment Is:\n{comment}")
+    print(f"The Newly Formatted Comment Is:\n{patient_comment}")
 
     # Append the new comment with a newline
     if patient.comment and patient.comment != "N/A":
-        patient.comment = patient.comment + "\n" + comment
+        patient.comment = patient.comment + "\n" + patient_comment
     else:
-        patient.comment = new_comment
+        patient.comment = patient_comment
 
     try:
         db.session.commit()
@@ -99,74 +94,10 @@ def raw_new_test_patient():
     except Exception as e:
         return jsonify({"message": f"Error: {str(e)}"}), 500
 
-@v2_api_bp.route('/populate_test_patient_data', methods=['GET'])
-def populate_test_patient_data():
-    # Get the absolute path to the test patients JSON file.
-    current_dir = Path(__file__).parent
-    base_dir = current_dir.parent
-    file_path = base_dir / "utils" / "test_patients.json"  # Ensure this file exists and matches the TestPatient fields
-    print(f'File Path To Test Patient.json is: {file_path}')
-    
-    if not os.path.exists(file_path):
-        return jsonify({"message": "File not found"}), 404
-
-    try:
-        with open(file_path, "r") as file:
-            patients = json.load(file)
-
-        # Delete existing test patient records before bulk inserting new ones.
-        db.session.execute(db.delete(TestPatient))
-        db.session.bulk_insert_mappings(TestPatient, patients)
-        db.session.commit()
-
-        return jsonify({"message": "Test patient data populated successfully"}), 201
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": f"Error: {str(e)}"}), 500
-
-@v2_api_bp.route('/upload_excel', methods=["GET"])
-def upload_excel():
-    try:
-        status = updated_data_population()
-        print(status)
-        return jsonify({
-            "message": "Data Populated Successfully"
-        }), 200
-    except Exception as e:
-        return jsonify({
-            "error": f"Error: {e}"
-        }), 500
-
-@v2_api_bp.route('/populate_user_data', methods=['GET'])
-def insert_users_orm():
-    # Define your user data as a list of dictionaries.
-    users_data = [
-        {"fname": "Alice", "lname": "Johnson", "email": "alice.johnson@example.com", "password": "password1", "role": "Admin"},
-        {"fname": "Bob", "lname": "Smith", "email": "bob.smith@example.com", "password": "password2", "role": "Clinician"},
-        {"fname": "Charlie", "lname": "Brown", "email": "charlie.brown@example.com", "password": "password3", "role": "Super User"},
-        {"fname": "Diana", "lname": "Prince", "email": "diana.prince@example.com", "password": "password4", "role": "Admin"},
-        {"fname": "Ethan", "lname": "Hunt", "email": "ethan.hunt@example.com", "password": "password5", "role": "Clinician"},
-        {"fname": "Fiona", "lname": "Shaw", "email": "fiona.shaw@example.com", "password": "password6", "role": "Super User"},
-        {"fname": "George", "lname": "Clooney", "email": "george.clooney@example.com", "password": "password7", "role": "Admin"},
-        {"fname": "Hannah", "lname": "Montana", "email": "hannah.montana@example.com", "password": "password8", "role": "Clinician"},
-        {"fname": "Ivan", "lname": "Drago", "email": "ivan.drago@example.com", "password": "password9", "role": "Super User"},
-        {"fname": "Julia", "lname": "Roberts", "email": "julia.roberts@example.com", "password": "password10", "role": "Admin"}
-    ]
-    try:
-        db.session.bulk_insert_mappings(User, users_data)
-        db.session.commit()
-        return jsonify({"message": "10 users inserted successfully using ORM!"}), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
-
 @v2_api_bp.route('/get_call_logs', methods=['GET', 'POST'])
 def get_call_logs():
     data = request.get_json()
     
-    print(f'Incoming Data: {data}')
-
     if not data:
         return jsonify({"Error": "Invalid request, no JSON payload received"}), 400
 
@@ -192,32 +123,49 @@ def get_call_logs():
 
 @v2_api_bp.route('/update_call_logs', methods=['POST'])
 def update_call_logs():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "Invalid request, no JSON payload received"}), 400
-
-    rxkid = data.get("rxkid")
-    admin_comment = data.get("admin_comment")
-    if not rxkid or admin_comment is None:
-        return jsonify({"error": "Missing required parameters"}), 400
-
-    patient = NewTestPatient.query.filter_by(rxkid=rxkid).first()
-    if not patient:
-        return jsonify({"error": "Patient not found"}), 404
-
-    new_log = CallLogs(
-        patient_id=patient.id,
-        call_date=datetime.utcnow().date(),
-        call_time=datetime.utcnow().time(),
-        admin_comment=admin_comment
-    )
-    db.session.add(new_log)
     try:
+        data = request.get_json()
+        rxkid = data["patientId"]
+        patient = NewTestPatient.query.filter_by(rxkid=rxkid).first()
+
+        if not patient:
+            return jsonify({"error": "Patient not found"}), 404
+
+        # Get current max ID using SQLAlchemy core
+        max_id = db.session.query(db.func.max(CallLogs.id)).scalar() or 0
+        
+        # Reset sequence using proper SQLAlchemy text() binding
+        db.session.execute(
+            text("SELECT setval('call_logs_id_seq', :new_val)"),
+            {'new_val': max_id}
+        )
+
+        time_str = data["time"]
+        # Determine if time_str is in 12-hour format with AM/PM or in 24-hour format
+        if "AM" in time_str.upper() or "PM" in time_str.upper():
+            parsed_time = datetime.strptime(time_str, "%I:%M %p").time()
+        else:
+            parsed_time = datetime.strptime(time_str, "%H:%M").time()
+
+        new_log = CallLogs(
+            patient_id=patient.id,  # Explicit ID assignment
+            call_date=datetime.strptime(data["date"], "%Y-%m-%d").date(),
+            call_time=parsed_time,
+            admin_comment=data["comment"]
+        )
+
+        db.session.add(new_log)
         db.session.commit()
-        return jsonify({"message": "Call log updated successfully."}), 200
+        return jsonify({"message": "Call log added", "log_id": new_log.id}), 200
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
+
+
+
 
 @v2_api_bp.route('/send_sms', methods=['POST'])
 def send_sms():
