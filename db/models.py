@@ -3,6 +3,8 @@ from datetime import datetime
 
 # User Model
 class User(db.Model):
+    __tablename__ = 'user'
+
     id = db.Column(db.Integer, primary_key=True)
     fname = db.Column(db.String(100), nullable=False)
     lname = db.Column(db.String(100), nullable=False)
@@ -111,4 +113,18 @@ class CallLogs(db.Model):
     admin_comment = db.Column(db.Text, nullable=True)
     patient = db.relationship('NewTestPatient', backref=db.backref('call_logs', lazy=True))
 
+class AssignPatient(db.Model):
+    __tablename__ = 'assign_patient'
 
+    id = db.Column(db.Integer, primary_key=True,  autoincrement=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('new_test_patient.id'), nullable=False)
+    clinician_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class DischargedPatients(db.Model):
+    __tablename__ = 'discharged_patients'
+    
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('new_test_patient.id'), nullable=False)
+    clinician_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    discharge_notes = db.Column(db.Text, nullable=True)
+    recovery_instructions = db.Column(db.Text, nullable=True)

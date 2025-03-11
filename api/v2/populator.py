@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from db.models import TestPatient, User, Patient, NewTestPatient, CallLogs  # Updated to use TestPatient instead of Patient
+from db.models import TestPatient, User, AssignPatient, NewTestPatient, CallLogs, DischargedPatients  # Updated to use TestPatient instead of Patient
 from db.extensions import db
 import os, json
 from pathlib import Path
@@ -131,4 +131,130 @@ def update_key_codes():
 
     db.session.commit()
     return jsonify({"message": "Key codes updated successfully."}), 200
+
+@populator_api.route('/update_assigned_patients_record', methods=['GET'])
+def update_assigned_patients_records():
+    import random
+    from sqlalchemy.orm import load_only
+
+    try:
+        # Step 1: Retrieve all patients with key_code "3 - Ongoing Procedure"
+        ongoing_patients = NewTestPatient.query.filter_by(key_code="3- Ongoing Procedure").options(load_only(NewTestPatient.id)).all()
+        if not ongoing_patients:
+            return jsonify({"message": "No patients with '3 - Ongoing Procedure' found"}), 200
+
+        # Extract patient IDs
+        patient_ids = [patient.id for patient in ongoing_patients]
+
+        # Step 2: Retrieve all clinicians
+        clinicians = User.query.filter_by(role="Clinician").options(load_only(User.id)).all()
+        if not clinicians:
+            return jsonify({"error": "No clinicians found"}), 404
+
+        # Extract clinician IDs
+        clinician_ids = [clinician.id for clinician in clinicians]
+        num_clinicians = len(clinician_ids)
+        num_patients = len(patient_ids)
+
+        # Step 3: Assign patients to clinicians
+        assignments = []
+
+        if num_patients >= num_clinicians:
+            # Ensure each clinician gets at least one patient
+            for i, clinician_id in enumerate(clinician_ids):
+                if i < num_patients:
+                    assignments.append((patient_ids[i], clinician_id))
+
+            # Assign remaining patients
+            remaining_patients = patient_ids[num_clinicians:]
+            for patient_id in remaining_patients:
+                assigned_clinician = random.choice(clinician_ids)
+                assignments.append((patient_id, assigned_clinician))
+        else:
+            # More clinicians than patients
+            # Assign each patient to a clinician
+            for i, patient_id in enumerate(patient_ids):
+                assignments.append((patient_id, clinician_ids[i]))
+
+            # Randomly assign remaining clinicians to patients
+            remaining_clinicians = clinician_ids[num_patients:]
+            for clinician_id in remaining_clinicians:
+                assigned_patient = random.choice(patient_ids)
+                assignments.append((assigned_patient, clinician_id))
+
+        # Step 4: Insert assignments into the assign_patient table
+        for patient_id, clinician_id in assignments:
+            assignment_entry = AssignPatient(
+                patient_id=patient_id,
+                clinician_id=clinician_id
+            )
+            db.session.add(assignment_entry)
+
+        # Commit all changes
+        db.session.commit()
+
+        return jsonify({"message": "Patients assigned to clinicians successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+
+
+@populator_api.route('/update_discharged_patients', methods=['GET'])
+def update_discharged_patients():
+    import random 
+
+    try:
+        # Step 1: Get all patients with key_code "4 - Discharged"
+        discharged_patients = NewTestPatient.query.filter_by(key_code="4 - Discharged").all()
+        if not discharged_patients:
+            return jsonify({"message": "No discharged patients found"}), 200
+
+        # Extract patient IDs
+        patient_ids = [patient.id for patient in discharged_patients]
+
+        # Step 2: Get all clinicians
+        clinicians = User.query.filter_by(role="Clinician").all()
+        if not clinicians:
+            return jsonify({"error": "No clinicians found"}), 404
+
+        # Extract clinician IDs
+        clinician_ids = [clinician.id for clinician in clinicians]
+
+        # Step 3: Randomly assign discharged patients to clinicians
+        for patient_id in patient_ids:
+            assigned_clinician = random.choice(clinician_ids)  # Random clinician assignment
+
+            # Generate random discharge notes and recovery instructions
+            discharge_notes = random.choice([
+                "Patient has recovered well", 
+                "Patient requires further monitoring", 
+                "Discharged with mild symptoms"
+            ])
+
+            recovery_instructions = random.choice([
+                "Follow-up in 2 weeks", 
+                "Regular medication required", 
+                "No further action needed"
+            ])
+
+            # Insert into DischargedPatients table
+            discharged_entry = DischargedPatients(
+                patient_id=patient_id,
+                clinician_id=assigned_clinician,
+                discharge_notes=discharge_notes,
+                recovery_instructions=recovery_instructions
+            )
+
+            db.session.add(discharged_entry)
+
+        # Commit all changes
+        db.session.commit()
+
+        return jsonify({"message": "Discharged patients updated successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Internal server error", "details": str(e)}), 500
+    
 
