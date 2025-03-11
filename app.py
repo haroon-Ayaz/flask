@@ -100,7 +100,8 @@ def refresh_database(app):
     print('Database refresh and data population complete.')
     return responses
 
+app = create_app()
+
 if __name__ == '__main__':
     os.environ['REFRESH_DB'] = '1'
-    app = create_app()
     app.run(debug=True)
