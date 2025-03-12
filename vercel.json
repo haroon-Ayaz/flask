@@ -1,36 +1,43 @@
 {
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "app.py"
+      "src": "api/app.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/app.py"
     }
   ],
   "functions": {
     "api/app.py": {
+      "runtime": "python@3.9",
       "maxDuration": 30
     }
   },
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
         {
-            "source": "/(.*)",
-            "headers": [
-                {
-                    "key": "Access-Control-Allow-Origin",
-                    "value": "*"
-                },
-                {
-                    "key": "Access-Control-Allow-Methods",
-                    "value": "GET,POST,OPTIONS"
-                },
-                {
-                    "key": "Access-Control-Allow-Headers",
-                    "value": "Content-Type,Authorization"
-                },
-                {
-                    "key": "Access-Control-Max-Age",
-                    "value": "3600"
-                }
-            ]
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET,POST,OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type,Authorization"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "3600"
         }
-    ]
+      ]
+    }
+  ]
 }
