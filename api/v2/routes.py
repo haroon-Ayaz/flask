@@ -179,10 +179,15 @@ def refreshEntireDataBase():
     user_resp = requests.get(f"{base_url}/api/v2/populator/popluate_user_data")
     print(f'\n\n The user response api populator is as follows {user_resp}\n\n')
     patient_resp = requests.get(f"{base_url}/api/v2/populator/populate_given_patient_data")
+    print(f'\n\n The patient response api populator is as follows {patient_resp}\n\n')
     call_logs_resp = requests.get(f"{base_url}/api/v2/populator/populate_call_logs")
+    print(f'\n\n The call logs response api populator is as follows {call_logs_resp}\n\n')
     key_code_logs = requests.get(f"{base_url}/api/v2/populator/update_key_codes")
+    print(f'\n\n The key coder response api populator is as follows {key_code_logs}\n\n')
     discharged_patients = requests.get(f"{base_url}/api/v2/populator/update_discharged_patients")
+    print(f'\n\n The discharged patients response api populator is as follows {discharged_patients}\n\n')
     assigned_patients = requests.get(f"{base_url}/api/v2/populator/update_assigned_patients_record")
+    print(f'\n\n The assigned patients response api populator is as follows {assigned_patients}\n\n')
 
     return jsonify({
         "user_data": user_resp.json(),
